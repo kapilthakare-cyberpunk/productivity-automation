@@ -1,0 +1,145 @@
+{
+  "name": "Daily Email Digest to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Every Day 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 20,
+        "filters": {
+          "q": "is:unread label:Label_147"
+        }
+      },
+      "name": "Get Bills",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [460, 200],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-cred",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 10,
+        "filters": {
+          "q": "is:unread -label:Label_147 -label:Bank Alerts newer_than:1d"
+        }
+      },
+      "name": "Get Important",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [460, 400],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-cred",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compile daily digest\nconst bills = $('Get Bills').all();\nconst important = $('Get Important').all();\n\nlet message = '📬 *Daily Email Digest*\\n\\n';\n\n// Bills section\nif (bills.length > 0) {\n  message += '💰 *Bills & Payments* (' + bills.length + ')\\n';\n  bills.forEach(bill => {\n    const snippet = bill.json.snippet?.substring(0, 60) || '';\n    message += '• ' + (bill.json.subject || 'Bill') + '\\n';\n    message += '  _' + snippet + '_\\n';\n  });\n  message += '\\n';\n}\n\n// Important section\nif (important.length > 0) {\n  message += '📧 *Important* (' + important.length + ')\\n';\n  important.forEach(msg => {\n    message += '• ' + (msg.json.from || 'Unknown') + '\\n';\n    message += '  ' + (msg.json.subject || 'No subject') + '\\n';\n  });\n  message += '\\n';\n}\n\n// Summary\nmessage += '📊 *Summary*\\n';\nmessage += '• Bills: ' + bills.length + '\\n';\nmessage += '• Important: ' + important.length + '\\n';\nmessage += '• Total unread: ' + (bills.length + important.length);\n\nreturn [{ json: { message } }];"
+      },
+      "name": "Compile Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-cred",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Day 9am": {
+      "main": [
+        [
+          {
+            "node": "Get Bills",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Important",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Bills": {
+      "main": [
+        [
+          {
+            "node": "Compile Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Important": {
+      "main": [
+        [
+          {
+            "node": "Compile Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile Digest": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

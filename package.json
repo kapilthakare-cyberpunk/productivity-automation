@@ -1,0 +1,26 @@
+{
+  "name": "productivity-automation",
+  "version": "1.0.0",
+  "description": "Personal automation workflows for Gmail, GitHub, and Calendar",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "n8n start",
+    "dev": "n8n start --tunnel",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "validate": "node scripts/validate-workflows.js"
+  },
+  "keywords": ["n8n", "automation", "gmail", "productivity"],
+  "author": "Kapil Thakare",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0"
+  },
+  "dependencies": {
+    "n8n-core": "^1.30.0"
+  }
+}

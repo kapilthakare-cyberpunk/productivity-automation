@@ -1,0 +1,101 @@
+{
+  "name": "Bill Tracker to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "subject:(bill OR invoice OR payment) is:unread label:Label_147"
+        }
+      },
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-cred",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract bill details from email\nconst email = $input.first().json;\n\nconst subject = email.subject || '';\nconst snippet = email.snippet || '';\nconst from = email.from || '';\nconst date = email.date || new Date().toISOString();\n\n// Extract amount (look for ₹ or Rs patterns)\nconst amountMatch = snippet.match(/[₹R][sS]?[\\s.]?([\\d,]+\\.?\\d*)/);\nconst amount = amountMatch ? amountMatch[1].replace(/,/g, '') : '0';\n\n// Extract due date\nconst dueDateMatch = snippet.match(/due\\s+date[\\s:]*(\\d{1,2}[\\-\\/\\s]*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\\-\\/\\s]*\\d{2,4})/i);\nconst dueDate = dueDateMatch ? dueDateMatch[1] : '';\n\n// Extract biller name\nconst biller = from.replace(/<.*>/, '').trim();\n\nreturn [{\n  json: {\n    date,\n    biller,\n    subject,\n    amount: parseFloat(amount),\n    dueDate,\n    emailId: email.id,\n    status: 'Pending'\n  }\n}];"
+      },
+      "name": "Extract Bill Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Bills",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Biller": "={{ $json.biller }}",
+            "Subject": "={{ $json.subject }}",
+            "Amount": "={{ $json.amount }}",
+            "Due Date": "={{ $json.dueDate }}",
+            "Status": "={{ $json.status }}"
+          }
+        }
+      },
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [680, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sheets-cred",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Bill Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bill Details": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
