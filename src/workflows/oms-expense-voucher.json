@@ -1,0 +1,299 @@
+{
+  "name": "OMS - Expense Voucher (New / Edit / Add Line)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "oms/expense-voucher",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.5,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "-action", "value": "login" },
+            { "name": "-redirect", "value": "" },
+            { "name": "UserName", "value": "kapil" },
+            { "name": "Password", "value": "1DR37JWTZT" },
+            { "name": "-submit", "value": "Submit" }
+          ]
+        },
+        "options": { "keepSession": true },
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Login to OMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst body = $('Webhook').first().json.body || {};\nconst action = body.action || 'new';\n\nif (action === 'edit') return [{ json: { action: 'edit', ...body } }];\nif (action === 'add-line') return [{ json: { action: 'add-line', ...body } }];\nreturn [{ json: { action: 'new', ...body } }];"
+      },
+      "name": "Route by action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": { "jsCode": "const body = $input.first().json;\nconst code = body.action === 'edit' ? 0 : body.action === 'add-line' ? 1 : 2;\nreturn [{ json: { ...body }, code }];" },
+      "name": "Switch action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [840, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php?-action=edit&-table=expense_vouchers&expense_voucher_id={{ $json.expense_voucher_id }}",
+        "authentication": "genericCredentialType",
+        "options": { "keepSession": true },
+        "sendBody": false,
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Fetch edit form",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.body;\nconst csrfMatch = html.match(/name=\"--form-session-key\"\\s+value=\"([^\"]+)\"/);\nconst origMatch = html.match(/name=\"--original_action\"[^>]*value=\"([^\"]+)\"/);\nreturn [{ json: { csrfToken: csrfMatch ? csrfMatch[1] : '', originalAction: origMatch ? origMatch[1] : 'edit' } }];"
+      },
+      "name": "Extract edit CSRF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $input.all()[0];\nconst webhook = $('Webhook').first().json.body || {};\nconst editFields = webhook.fields || {};\nconst csrf = $('Extract edit CSRF').first().json;\n\nconst params = {\n  '-table': 'expense_vouchers',\n  '-action': 'edit',\n  'expense_voucher_id': webhook.expense_voucher_id,\n  '__keys__[expense_voucher_id]': webhook.expense_voucher_id,\n  '--original_action': csrf.originalAction,\n  '--form-session-key': csrf.csrfToken,\n  '_qf__existing_expense_vouchers_record_form': '1'\n};\n\nfor (const [k, v] of Object.entries(editFields)) {\n  params[k] = v;\n}\n\nreturn [{ json: params }];"
+      },
+      "name": "Build edit payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, -100]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyType": "form-data",
+        "bodyParameters": {},
+        "options": { "keepSession": true },
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Submit edit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1960, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst bodyStr = typeof response.body === 'string' ? response.body : JSON.stringify(response.body);\nconst saved = bodyStr.includes('saved') || response.statusCode === 302;\nreturn [{ json: { success: saved, message: saved ? 'Expense voucher updated' : 'Edit may have failed', voucherId: $('Switch action').first().json.expense_voucher_id } }];"
+      },
+      "name": "Check edit result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst webhook = $('Webhook').first().json.body || {};\nconst line = webhook.line || {};\nreturn [{ json: { ...body, ...webhook, line } }];"
+      },
+      "name": "Prepare add-line data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst line = data.line || {};\n\nconst params = {\n  '-table': 'expense_vouchers',\n  '-relationship': 'expense_lines',\n  '-action': 'new_related_record',\n  'expense_voucher_id': data.expense_voucher_id,\n  '__keys__[expense_voucher_id]': data.expense_voucher_id,\n  'line_id': '',\n  'expense_type_id': line.expense_type_id || '3',\n  'description': line.description || '',\n  'amount': line.amount || '',\n  'trip_id': line.trip_id || '',\n  'bill_details': line.bill_details || '',\n  '_qf__expense_vouchers_expense_lines': '',\n  '--original_action': 'new_related_record',\n  '-Save': 'Save'\n};\n\nreturn [{ json: params }];"
+      },
+      "name": "Build line payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyType": "form-data",
+        "bodyParameters": {},
+        "options": { "keepSession": true },
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Submit line",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst bodyStr = typeof response.body === 'string' ? response.body : JSON.stringify(response.body);\nconst saved = bodyStr.includes('saved') || response.statusCode === 302;\nreturn [{ json: { success: saved, message: saved ? 'Expense line added' : 'Add line may have failed', voucherId: $('Switch action').first().json.expense_voucher_id } }];"
+      },
+      "name": "Check line result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php?-action=new&-table=expense_vouchers",
+        "authentication": "genericCredentialType",
+        "options": { "keepSession": true },
+        "sendBody": false,
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Fetch new voucher form",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.body;\nconst csrfMatch = html.match(/name=\"--form-session-key\"\\s+value=\"([^\"]+)\"/);\nconst csrfToken = csrfMatch ? csrfMatch[1] : '';\nif (!csrfToken) throw new Error('Could not extract CSRF token from form');\nreturn [{ json: { csrfToken } }];"
+      },
+      "name": "Extract new CSRF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 500]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\"expense_date\":\"\",\"ledger_date\":\"\",\"employee_id\":\"\",\"charge_to_customer\":\"No\",\"customer_id\":\"\",\"order_id\":\"\",\"default_expense_category\":\"\",\"description\":\"\"}"
+      },
+      "name": "Default new fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1680, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const expense = $input.all()[0];\nconst webhookData = $('Webhook').first();\nconst fields = { ...expense.json };\nif (webhookData.json.body) Object.assign(fields, webhookData.json.body);\n\nconst lines = fields.lines || [];\nconst formParams = {};\nformParams['-table'] = 'expense_vouchers';\nformParams['-action'] = 'new';\nformParams['--form-session-key'] = fields.csrfToken;\nformParams['--no-query'] = '1';\nformParams['_qf__new_expense_vouchers_record_form'] = '1';\nformParams['new_expense_vouchers_record_form'] = '1';\n\n['expense_voucher_id','expense_date','ledger_date','employee_id','charge_to_customer','customer_id','order_id','default_expense_category','description'].forEach(f => {\n  const val = fields[f];\n  if (val !== undefined && val !== null && val !== '') formParams[f] = val;\n});\n\nlet lineIndex = 0;\nfor (const line of lines) {\n  const pfx = `lines[${lineIndex}]`;\n  formParams[`${pfx}[expense_type]`] = line.expense_type || '';\n  formParams[`${pfx}[description]`] = line.description || '';\n  formParams[`${pfx}[bill_no]`] = line.bill_no || '';\n  formParams[`${pfx}[trip]`] = line.trip || '';\n  formParams[`${pfx}[amount]`] = line.amount || '';\n  formParams[`${pfx}[__id__]`] = 'new';\n  lineIndex++;\n}\nif (lines.length === 0) formParams['lines[0][__id__]'] = 'new';\nformParams['lines[__loaded__]'] = String(lineIndex || 1);\nreturn [{ json: formParams }];"
+      },
+      "name": "Build new payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 500]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyType": "form-data",
+        "bodyParameters": {},
+        "options": { "keepSession": true },
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Submit new voucher",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2240, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst bodyStr = typeof response.body === 'string' ? response.body : JSON.stringify(response.body);\nconst success = bodyStr.includes('expense_voucher_id') || bodyStr.includes('Record saved') || bodyStr.includes('successfully saved');\nconst idMatch = bodyStr.match(/expense_voucher_id=(\\d+)/);\nreturn [{ json: { success, expenseVoucherId: idMatch ? idMatch[1] : null, message: success ? 'Expense voucher submitted' : 'Submission may have failed' } }];"
+      },
+      "name": "Check new result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2520, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2800, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Login to OMS", "type": "main", "index": 0 }]]
+    },
+    "Login to OMS": {
+      "main": [[{ "node": "Route by action", "type": "main", "index": 0 }]]
+    },
+    "Route by action": {
+      "main": [[{ "node": "Switch action", "type": "main", "index": 0 }]]
+    },
+    "Switch action": {
+      "main": [
+        [{ "node": "Fetch edit form", "type": "main", "index": 0 }],
+        [{ "node": "Prepare add-line data", "type": "main", "index": 0 }],
+        [{ "node": "Fetch new voucher form", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch edit form": {
+      "main": [[{ "node": "Extract edit CSRF", "type": "main", "index": 0 }]]
+    },
+    "Extract edit CSRF": {
+      "main": [[{ "node": "Build edit payload", "type": "main", "index": 0 }]]
+    },
+    "Build edit payload": {
+      "main": [[{ "node": "Submit edit", "type": "main", "index": 0 }]]
+    },
+    "Submit edit": {
+      "main": [[{ "node": "Check edit result", "type": "main", "index": 0 }]]
+    },
+    "Check edit result": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "Prepare add-line data": {
+      "main": [[{ "node": "Build line payload", "type": "main", "index": 0 }]]
+    },
+    "Build line payload": {
+      "main": [[{ "node": "Submit line", "type": "main", "index": 0 }]]
+    },
+    "Submit line": {
+      "main": [[{ "node": "Check line result", "type": "main", "index": 0 }]]
+    },
+    "Check line result": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "Fetch new voucher form": {
+      "main": [[{ "node": "Extract new CSRF", "type": "main", "index": 0 }]]
+    },
+    "Extract new CSRF": {
+      "main": [[{ "node": "Default new fields", "type": "main", "index": 0 }]]
+    },
+    "Default new fields": {
+      "main": [[{ "node": "Build new payload", "type": "main", "index": 0 }]]
+    },
+    "Build new payload": {
+      "main": [[{ "node": "Submit new voucher", "type": "main", "index": 0 }]]
+    },
+    "Submit new voucher": {
+      "main": [[{ "node": "Check new result", "type": "main", "index": 0 }]]
+    },
+    "Check new result": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "id": "oms-expense-voucher-001",
+  "tags": ["oms", "expense"]
+}
