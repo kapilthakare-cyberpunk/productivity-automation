@@ -212,6 +212,65 @@ async function addProduct(page, product) {
   console.log(`Product ${product.sku} added to order`);
 }
 
+async function setPaymentMethod(page, method) {
+  console.log(`Setting payment: ${method}...`);
+  await page.locator('label').filter({ hasText: method }).click();
+  await page.waitForTimeout(1000);
+  console.log('Payment method set');
+}
+
+async function setShippingMethod(page, option) {
+  console.log(`Setting shipping: ${option}...`);
+  await page.locator('label').filter({ hasText: option }).click();
+  await page.waitForTimeout(2000);
+  console.log('Shipping method set');
+}
+
+async function addOrderComment(page, comment) {
+  const toggle = await page.$('#order-comment');
+  if (toggle) {
+    await toggle.click();
+    await page.waitForTimeout(500);
+  }
+  const textarea = await page.$('#order-comment textarea');
+  if (textarea) await textarea.fill(comment);
+}
+
+async function submitOrder(page, order) {
+  await addOrderComment(page, order.comment);
+  await page.click('button[title="Submit Order"]');
+  await page.waitForTimeout(5000);
+  const successEl = await page.$('.order-success-message, .message-success, .message');
+  let orderNumber = null;
+  if (successEl) {
+    const text = await successEl.textContent();
+    const match = text.match(/order\s+#?\s*(\d+)/i);
+    if (match) orderNumber = match[1];
+  }
+  if (!orderNumber) {
+    const urlMatch = page.url().match(/order_id[/=](\d+)/);
+    if (urlMatch) orderNumber = urlMatch[1];
+  }
+  if (!orderNumber) throw new Error('Could not confirm order creation. Check browser.');
+  console.log(`Order #${orderNumber} created successfully!`);
+  let pdfPath = null;
+  const pdfLink = await page.$('a:has-text("Rental Agreement"), a:has-text("Contract"), a:has-text("PDF")');
+  if (pdfLink) {
+    try {
+      const [download] = await Promise.all([
+        page.waitForEvent('download', { timeout: 5000 }),
+        pdfLink.click(),
+      ]);
+      pdfPath = `rental-agreement-${orderNumber}.pdf`;
+      await download.saveAs(pdfPath);
+      console.log(`PDF saved: ${pdfPath}`);
+    } catch {
+      console.log('PDF download skipped');
+    }
+  }
+  return { orderNumber, pdfPath };
+}
+
 async function main() {
   const raw = parseInput();
   const order = validateInput(raw);
@@ -234,6 +293,15 @@ async function main() {
     for (const product of order.products) {
       await addProduct(page, product);
     }
+
+    await setPaymentMethod(page, order.paymentMethod);
+    await setShippingMethod(page, order.shippingOption);
+
+    const result = await submitOrder(page, order);
+
+    console.log('\n=== ORDER RESULT ===');
+    console.log(JSON.stringify(result, null, 2));
+    console.log('\nBrowser will remain open. Press Ctrl+C to close.');
   } catch (error) {
     console.error('Error:', error.message);
     await page.screenshot({ path: 'error-screenshot.png' });
