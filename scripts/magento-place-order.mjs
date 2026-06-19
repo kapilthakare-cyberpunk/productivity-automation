@@ -167,6 +167,51 @@ async function selectCustomer(page, customerName) {
   console.log('Customer selected');
 }
 
+async function configureRentalProduct(page, product) {
+  console.log('Configuring rental dates...');
+  const startInput = await page.$('input[name*="start"], input[data-role*="start"], input[class*="start"]');
+  if (startInput) await startInput.fill(product.rentalStart);
+  const endInput = await page.$('input[name*="end"], input[data-role*="end"], input[class*="end"]');
+  if (endInput) await endInput.fill(product.rentalEnd);
+  const okBtn = await page.$('button.ok, button[title="OK"], button:has-text("OK"), button:has-text("Confirm")');
+  if (okBtn) await okBtn.click();
+  await page.waitForTimeout(2000);
+  console.log('Rental dates configured');
+}
+
+async function addProduct(page, product) {
+  console.log(`Searching product: ${product.sku}...`);
+  await page.click('#order-items .action-add');
+  await page.waitForTimeout(2000);
+  await page.waitForSelector('.product-grid, .modal-content', { timeout: 10000 });
+  const skuInput = await page.$('input[name="sku"]');
+  if (skuInput) {
+    await skuInput.fill(product.sku);
+    await skuInput.press('Enter');
+  }
+  await page.waitForTimeout(2000);
+  const row = await page.$('.data-row:first-child');
+  if (!row) throw new Error(`Product not found: ${product.sku}`);
+  await row.click();
+  await page.waitForTimeout(1000);
+  const addBtn = await page.$('button[title*="Add Selected"]');
+  if (addBtn) await addBtn.click();
+  await page.waitForTimeout(2000);
+  const configurePopup = await page.$('.configure-popup, .modal-content:visible');
+  if (configurePopup) await configureRentalProduct(page, product);
+  if (product.customPrice) {
+    const priceInput = await page.$('input[name="custom_price"], input[data-role*="custom_price"]');
+    if (priceInput) await priceInput.fill(String(product.customPrice));
+  }
+  const qtyInput = await page.$('input[name="qty"]');
+  if (qtyInput) {
+    await qtyInput.fill(String(product.qty || 1));
+    await qtyInput.press('Enter');
+  }
+  await page.waitForTimeout(2000);
+  console.log(`Product ${product.sku} added to order`);
+}
+
 async function main() {
   const raw = parseInput();
   const order = validateInput(raw);
@@ -186,6 +231,9 @@ async function main() {
     await navigateToOrders(page);
     await createNewOrder(page);
     await selectCustomer(page, order.customer);
+    for (const product of order.products) {
+      await addProduct(page, product);
+    }
   } catch (error) {
     console.error('Error:', error.message);
     await page.screenshot({ path: 'error-screenshot.png' });
