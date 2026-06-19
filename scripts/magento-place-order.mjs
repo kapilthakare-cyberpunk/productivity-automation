@@ -1,4 +1,5 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
+import { chromium } from 'playwright';
 
 export const CONFIG = {
   MAGENTO_BASE_URL: process.env.MAGENTO_BASE_URL || 'https://primesandzooms.com/notoms',
@@ -74,8 +75,90 @@ export function validateInput(data) {
   };
 }
 
+async function loadSession(context, sessionPath) {
+  try {
+    const data = readFileSync(sessionPath, 'utf-8');
+    const cookies = JSON.parse(data);
+    await context.addCookies(cookies);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function saveSession(context, sessionPath) {
+  const cookies = await context.cookies();
+  writeFileSync(sessionPath, JSON.stringify(cookies, null, 2));
+  console.log(`Session saved to ${sessionPath}`);
+}
+
+function readStdinLine() {
+  return new Promise((resolve) => {
+    process.stdin.once('data', (buf) => resolve(buf.toString().trim()));
+  });
+}
+
+async function promptFor2FA(page) {
+  console.log('\n=== 2FA REQUIRED ===');
+  console.log('Open Google Authenticator on your phone.');
+  process.stdout.write('TOTP Code: ');
+  const code = await readStdinLine();
+
+  const totpInput = await page.$('input[name^="totp"]') || await page.$('input[type="text"]:not(#username):not(#login)');
+  if (totpInput) {
+    await totpInput.fill(code);
+  }
+
+  const submitBtn = await page.$('button[type="submit"], .action-primary, .action-submit');
+  if (submitBtn) {
+    await submitBtn.click();
+  }
+
+  await page.waitForTimeout(3000);
+  console.log('2FA verified');
+}
+
+async function login(page, sessionPath) {
+  await page.goto(CONFIG.ADMIN_URL, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+
+  await page.fill('#username', CONFIG.MAGENTO_ADMIN_USERNAME);
+  await page.fill('#login', CONFIG.MAGENTO_ADMIN_PASSWORD);
+  await page.click('.action-login');
+  await page.waitForTimeout(3000);
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('tfa') || currentUrl.includes('2fa')) {
+    await promptFor2FA(page);
+  }
+
+  await page.waitForSelector('.admin__menu', { timeout: 120000 });
+  console.log('Login successful');
+}
+
 async function main() {
-  console.log('Script scaffold ready');
+  const raw = parseInput();
+  const order = validateInput(raw);
+
+  const sessionPath = './.magento-session.json';
+  const browser = await chromium.launch({ headless: false });
+  const context = await browser.newContext();
+
+  const sessionLoaded = await loadSession(context, sessionPath);
+  const page = await context.newPage();
+
+  try {
+    await login(page, sessionPath);
+    await saveSession(context, sessionPath);
+
+    console.log('\nLogin flow complete. Script scaffold ready for order flow.');
+    console.log('Browser will remain open. Press Ctrl+C to close.');
+  } catch (error) {
+    console.error('Error:', error.message);
+    await page.screenshot({ path: 'error-screenshot.png' });
+    console.log('Screenshot saved: error-screenshot.png');
+    process.exit(1);
+  }
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
