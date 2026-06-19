@@ -136,6 +136,37 @@ async function login(page, sessionPath) {
   console.log('Login successful');
 }
 
+async function navigateToOrders(page) {
+  await page.click('li.item-sales >> text=Sales');
+  await page.waitForTimeout(1000);
+  await page.click('text=Orders');
+  await page.waitForSelector('.page-actions-buttons', { timeout: 10000 });
+  console.log('Navigated to Sales > Orders');
+}
+
+async function createNewOrder(page) {
+  await page.click('button[title="Create New Order"]');
+  await page.waitForTimeout(2000);
+  console.log('Create New Order button clicked');
+}
+
+async function selectCustomer(page, customerName) {
+  console.log(`Selecting customer: ${customerName}...`);
+  const gridExists = await page.$('.admin__data-grid-wrap');
+  if (gridExists) {
+    const searchInput = await page.$('input[data-form-part="customer_grid_listing"]')
+      || await page.$('input[type="search"]');
+    if (searchInput) {
+      await searchInput.fill(customerName);
+      await searchInput.press('Enter');
+    }
+    await page.waitForTimeout(2000);
+    await page.click('.data-row:first-child');
+    await page.waitForTimeout(3000);
+  }
+  console.log('Customer selected');
+}
+
 async function main() {
   const raw = parseInput();
   const order = validateInput(raw);
@@ -144,15 +175,17 @@ async function main() {
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext();
 
-  const sessionLoaded = await loadSession(context, sessionPath);
+  await loadSession(context, sessionPath);
   const page = await context.newPage();
 
   try {
     await login(page, sessionPath);
     await saveSession(context, sessionPath);
 
-    console.log('\nLogin flow complete. Script scaffold ready for order flow.');
-    console.log('Browser will remain open. Press Ctrl+C to close.');
+    console.log(`\nPlacing order for customer: ${order.customer}`);
+    await navigateToOrders(page);
+    await createNewOrder(page);
+    await selectCustomer(page, order.customer);
   } catch (error) {
     console.error('Error:', error.message);
     await page.screenshot({ path: 'error-screenshot.png' });
