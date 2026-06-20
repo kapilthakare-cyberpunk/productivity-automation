@@ -30,6 +30,7 @@
     "ajv-draft-04": "^1.0.0",
     "n8n": "^2.26.6",
     "n8n-core": "^1.30.0",
-    "playwright": "^1.61.0"
+    "playwright": "^1.61.0",
+    "puppeteer-core": "^25.1.0"
   }
 }

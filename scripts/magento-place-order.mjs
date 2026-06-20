@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { chromium } from 'playwright';
 
 export const CONFIG = {
@@ -75,23 +75,6 @@ export function validateInput(data) {
   };
 }
 
-async function loadSession(context, sessionPath) {
-  try {
-    const data = readFileSync(sessionPath, 'utf-8');
-    const cookies = JSON.parse(data);
-    await context.addCookies(cookies);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function saveSession(context, sessionPath) {
-  const cookies = await context.cookies();
-  writeFileSync(sessionPath, JSON.stringify(cookies, null, 2));
-  console.log(`Session saved to ${sessionPath}`);
-}
-
 function readStdinLine() {
   return new Promise((resolve) => {
     process.stdin.once('data', (buf) => resolve(buf.toString().trim()));
@@ -118,22 +101,32 @@ async function promptFor2FA(page) {
   console.log('2FA verified');
 }
 
-async function login(page, sessionPath) {
-  await page.goto(CONFIG.ADMIN_URL, { waitUntil: 'networkidle' });
+async function launchBrowser() {
+  console.log('\nStep 1: Launching Chrome...');
+  const userDataDir = './.magento-browser-data';
+  const context = await chromium.launchPersistentContext(userDataDir, {
+    headless: false,
+    channel: 'chrome',
+    args: ['--start-maximized'],
+  });
+  const page = context.pages()[0] || await context.newPage();
+  return { context, page };
+}
+
+async function manualLogin(page) {
+  console.log('\n=== MANUAL LOGIN REQUIRED ===');
+  console.log('A Chrome window has opened.');
+  console.log('1. The page will navigate to the admin URL.');
+  console.log('2. If Cloudflare appears — solve it manually.');
+  console.log('3. Log in with your credentials + 2FA.');
+  console.log('4. Wait until you see the admin dashboard.');
+  console.log('5. Then come back here and press Enter to continue.\n');
+  await page.goto(CONFIG.ADMIN_URL, { waitUntil: 'domcontentloaded', timeout: 90000 });
+  console.log('Navigated to admin. Press Enter in this terminal once you are logged in and see the dashboard...');
+  process.stdin.resume();
+  await new Promise((resolve) => process.stdin.once('data', resolve));
   await page.waitForTimeout(2000);
-
-  await page.fill('#username', CONFIG.MAGENTO_ADMIN_USERNAME);
-  await page.fill('#login', CONFIG.MAGENTO_ADMIN_PASSWORD);
-  await page.click('.action-login');
-  await page.waitForTimeout(3000);
-
-  const currentUrl = page.url();
-  if (currentUrl.includes('tfa') || currentUrl.includes('2fa')) {
-    await promptFor2FA(page);
-  }
-
-  await page.waitForSelector('.admin__menu', { timeout: 120000 });
-  console.log('Login successful');
+  console.log('Continuing with order placement...');
 }
 
 async function navigateToOrders(page) {
@@ -152,18 +145,14 @@ async function createNewOrder(page) {
 
 async function selectCustomer(page, customerName) {
   console.log(`Selecting customer: ${customerName}...`);
-  const gridExists = await page.$('.admin__data-grid-wrap');
-  if (gridExists) {
-    const searchInput = await page.$('input[data-form-part="customer_grid_listing"]')
-      || await page.$('input[type="search"]');
-    if (searchInput) {
-      await searchInput.fill(customerName);
-      await searchInput.press('Enter');
-    }
-    await page.waitForTimeout(2000);
-    await page.click('.data-row:first-child');
-    await page.waitForTimeout(3000);
-  }
+  await page.waitForTimeout(2000);
+  await page.waitForSelector('#sales_order_create_customer_grid_table tbody tr', { timeout: 15000 });
+  const cell = page.locator('#sales_order_create_customer_grid_table tbody tr td:nth-child(2)')
+    .filter({ hasText: customerName })
+    .first();
+  await cell.waitFor({ state: 'visible', timeout: 10000 });
+  await cell.click();
+  await page.waitForTimeout(3000);
   console.log('Customer selected');
 }
 
@@ -275,17 +264,26 @@ async function main() {
   const raw = parseInput();
   const order = validateInput(raw);
 
-  const sessionPath = './.magento-session.json';
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext();
+  const connectMode = process.argv.includes('--connect');
 
-  await loadSession(context, sessionPath);
-  const page = await context.newPage();
+  let browser, context, page;
+
+  if (connectMode) {
+    console.log('Connecting to existing Chrome at http://127.0.0.1:9222...');
+    browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+    const ctx = browser.contexts()[0];
+    page = ctx.pages()[0];
+    context = ctx;
+    console.log('Connected. Current URL:', page.url());
+    console.log('Navigating to admin dashboard...');
+    await page.goto(CONFIG.ADMIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('.admin__menu', { timeout: 15000 });
+  } else {
+    ({ context, page } = await launchBrowser());
+    await manualLogin(page);
+  }
 
   try {
-    await login(page, sessionPath);
-    await saveSession(context, sessionPath);
-
     console.log(`\nPlacing order for customer: ${order.customer}`);
     await navigateToOrders(page);
     await createNewOrder(page);
