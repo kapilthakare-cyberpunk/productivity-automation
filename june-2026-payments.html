@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>June 2026 Payment Summary</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 0.25rem;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            font-weight: 400;
+            color: #4b5563;
+        }
+        
+        .table-wrapper {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            background: #f8fafc;
+        }
+        
+        .table-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        thead th {
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        tbody td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        .amount {
+            text-align: right;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .status-pending {
+            color: #f59e0b;
+            font-weight: 500;
+        }
+        
+        .status-paid {
+            color: #10b981;
+            font-weight: 500;
+        }
+        
+        .status-overdue {
+            color: #ef4444;
+            font-weight: 500;
+        }
+        
+        .remarks {
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        .remarks.ignore {
+            color: #ef4444;
+            font-weight: 500;
+            font-style: normal;
+        }
+        
+        .total-row {
+            background: #f8fafc;
+            font-weight: 600;
+        }
+        
+        .total-row td {
+            border-top: 2px solid #e5e7eb;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        
+        footer {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-top: 2rem;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 1rem;
+            }
+            
+            .table-wrapper {
+                box-shadow: none;
+                border: 1px solid #e5e7eb;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .table-wrapper {
+                overflow-x: auto;
+            }
+            
+            table {
+                min-width: 700px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>June 2026 Payment Summary</h1>
+            <p class="subtitle">Kapil Thakare · Generated on June 18, 2026</p>
+        </header>
+        
+        <div class="table-wrapper">
+            <div class="table-header">
+                <h2>UPCOMING DUE (Remaining June)</h2>
+                <span>4 bills pending</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Biller</th>
+                        <th class="amount">Amount</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Vi Postpaid</td>
+                        <td class="amount">₹650.19</td>
+                        <td>Jun 19</td>
+                        <td><span class="status-pending">Pending</span></td>
+                        <td class="remarks">Due tomorrow</td>
+                    </tr>
+                    <tr>
+                        <td>JioFiber</td>
+                        <td class="amount">₹0</td>
+                        <td>Jun 22</td>
+                        <td><span class="status-pending">Pending</span></td>
+                        <td class="remarks ignore">Pls Ignore</td>
+                    </tr>
+                    <tr>
+                        <td>Amazon Pay ICICI Credit Card</td>
+                        <td class="amount">₹12,273.38</td>
+                        <td>Jun 23</td>
+                        <td><span class="status-pending">Pending</span></td>
+                        <td class="remarks">Minimum due: ₹720</td>
+                    </tr>
+                    <tr>
+                        <td>Airtel Black</td>
+                        <td class="amount">₹2,119.28</td>
+                        <td>Jun 28</td>
+                        <td><span class="status-pending">Pending</span></td>
+                        <td class="remarks"></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>TOTAL</td>
+                        <td class="amount">₹15,042.85</td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <footer>
+            <p>Source: Gmail · kapilsthakare@gmail.com · Auto-generated on June 18, 2026</p>
+        </footer>
+    </div>
+</body>
+</html>
