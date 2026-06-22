@@ -6,3 +6,5 @@ dist/
 coverage/
 .nyc_output/
 .magento-browser-data/
+magento-session.json
+*.png

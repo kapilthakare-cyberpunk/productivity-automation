@@ -130,10 +130,9 @@ async function manualLogin(page) {
 }
 
 async function navigateToOrders(page) {
-  await page.click('li.item-sales >> text=Sales');
-  await page.waitForTimeout(1000);
-  await page.click('text=Orders');
-  await page.waitForSelector('.page-actions-buttons', { timeout: 10000 });
+  const ordersUrl = `${CONFIG.MAGENTO_BASE_URL}/admin/sales_order/index/`;
+  await page.goto(ordersUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForSelector('.page-actions-buttons, #sales_order_grid', { timeout: 15000 });
   console.log('Navigated to Sales > Orders');
 }
 
@@ -265,6 +264,7 @@ async function main() {
   const order = validateInput(raw);
 
   const connectMode = process.argv.includes('--connect');
+  const useSession = process.argv.includes('--use-session');
 
   let browser, context, page;
 
@@ -280,7 +280,23 @@ async function main() {
     await page.waitForSelector('.admin__menu', { timeout: 15000 });
   } else {
     ({ context, page } = await launchBrowser());
-    await manualLogin(page);
+
+    if (useSession) {
+      const { existsSync, readFileSync } = await import('fs');
+      const sfIndex = process.argv.indexOf('--session-file');
+      const sessionPath = sfIndex !== -1 ? process.argv[sfIndex + 1] : './magento-session.json';
+      if (!existsSync(sessionPath)) {
+        throw new Error(`Session file not found: ${sessionPath}. Run node magento-login.mjs first.`);
+      }
+      const state = JSON.parse(readFileSync(sessionPath, 'utf-8'));
+      await context.addCookies(state.cookies);
+      console.log(`Loaded ${state.cookies.length} cookies from session`);
+      await page.goto(CONFIG.ADMIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForSelector('.admin__menu', { timeout: 15000 });
+      console.log('Admin dashboard accessible via session.');
+    } else {
+      await manualLogin(page);
+    }
   }
 
   try {
