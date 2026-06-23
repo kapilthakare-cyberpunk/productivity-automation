@@ -1,0 +1,257 @@
+{
+  "name": "OMS - Submit Inquiry",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "oms/inquiry",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "-action",
+              "value": "login"
+            },
+            {
+              "name": "-redirect",
+              "value": ""
+            },
+            {
+              "name": "UserName",
+              "value": "={{ $env.OMS_USERNAME }}"
+            },
+            {
+              "name": "Password",
+              "value": "={{ $env.OMS_PASSWORD }}"
+            },
+            {
+              "name": "-submit",
+              "value": "Submit"
+            }
+          ]
+        },
+        "options": {
+          "keepSession": true
+        },
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Login to OMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php?-action=new&-table=inquiries",
+        "authentication": "genericCredentialType",
+        "options": {
+          "keepSession": true
+        },
+        "sendBody": false,
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Fetch new-inquiry form",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.body;\n\nconst csrfMatch = html.match(/name=\"--form-session-key\"\\s+value=\"([^\"]+)\"/);\nconst csrfToken = csrfMatch ? csrfMatch[1] : '';\n\nif (!csrfToken) throw new Error('Could not extract CSRF token from form');\n\nreturn [{ json: { csrfToken } }];"
+      },
+      "name": "Extract CSRF token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"inquiry_type\": \"Photo\",\n  \"from_email\": \"\",\n  \"from_name\": \"\",\n  \"from_company\": \"\",\n  \"contact_number\": \"\",\n  \"status\": \"New\",\n  \"user_id\": \"2\",\n  \"inquiry_id\": \"\",\n  \"delivery\": \"\",\n  \"delivery_time\": \"\",\n  \"delivery_address\": \"\",\n  \"delivery_location\": \"\",\n  \"return_time\": \"\",\n  \"del_buffer\": \"\",\n  \"ret_buffer\": \"\",\n  \"city\": \"\",\n  \"shipping_method_id\": \"\",\n  \"delivery_charges\": \"\",\n  \"adhoc_discount\": \"\",\n  \"discount_id\": \"\",\n  \"booked_status\": \"\",\n  \"closure_reason\": \"\",\n  \"internal_notes\": \"\",\n  \"contact_notes\": \"\",\n  \"followup_notes\": \"\",\n  \"instructions_by_cust\": \"\",\n  \"notes_for_frontoffice\": \"\",\n  \"notes_for_inventory\": \"\",\n  \"notes_for_logistics\": \"\",\n  \"order_internal_notes\": \"\",\n  \"trade_rental\": \"\",\n  \"__trade_rental\": \"\"\n}"
+      },
+      "name": "Default form fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inquiry = $input.all()[0];\nconst webhookData = $('Webhook').first();\n\nconst fields = { ...inquiry.json };\nif (webhookData.json.body) {\n  Object.assign(fields, webhookData.json.body);\n}\n\nconst errors = [];\nif (!fields.from_name || String(fields.from_name).trim() === '') errors.push('from_name is required');\nif (!fields.from_email || String(fields.from_email).trim() === '') errors.push('from_email is required');\nif (!fields.contact_number || String(fields.contact_number).trim() === '') errors.push('contact_number is required');\n\nconst lines = fields.lines || [];\nif (!Array.isArray(lines)) {\n  errors.push('lines must be an array');\n} else {\n  for (let i = 0; i < lines.length; i++) {\n    const line = lines[i];\n    if (!line.item_id) errors.push(`lines[${i}].item_id is required`);\n    const qty = Number(line.item_quantity);\n    if (!line.item_quantity || isNaN(qty) || qty < 1) errors.push(`lines[${i}].item_quantity must be a positive number`);\n  }\n}\n\nif (errors.length > 0) {\n  throw new Error('Validation failed: ' + errors.join('; '));\n}\n\nconst formParams = {};\n\nformParams['-table'] = 'inquiries';\nformParams['-action'] = 'new';\nformParams['--form-session-key'] = fields.csrfToken;\nformParams['--no-query'] = '1';\nformParams['_qf__new_inquiries_record_form'] = '1';\nformParams['new_inquiries_record_form'] = '1';\n\nconst textFields = [\n  'inquiry_type', 'from_email', 'from_name', 'from_company',\n  'contact_number', 'status', 'user_id', 'inquiry_id',\n  'delivery', 'delivery_time', 'delivery_address', 'delivery_location',\n  'return_time', 'del_buffer', 'ret_buffer', 'city',\n  'shipping_method_id', 'delivery_charges', 'adhoc_discount',\n  'discount_id', 'booked_status', 'closure_reason',\n  'internal_notes', 'contact_notes', 'followup_notes',\n  'instructions_by_cust', 'notes_for_frontoffice',\n  'notes_for_inventory', 'notes_for_logistics',\n  'order_internal_notes', 'trade_rental', '__trade_rental'\n];\n\nfor (const f of textFields) {\n  const val = fields[f];\n  if (val !== undefined && val !== null && val !== '') {\n    formParams[f] = val;\n  }\n}\n\nconst dateFields = ['delivery_date', 'booking_release_date', 'received_on', 'return_date', 'followup_date'];\nfor (const df of dateFields) {\n  const val = fields[df];\n  if (val) {\n    if (typeof val === 'object') {\n      if (val.d) formParams[`${df}[d]`] = val.d;\n      if (val.M) formParams[`${df}[M]`] = val.M;\n      if (val.Y) formParams[`${df}[Y]`] = val.Y;\n    } else if (typeof val === 'string' && val.includes('-')) {\n      const parts = val.split('-');\n      if (parts.length === 3) {\n        formParams[`${df}[Y]`] = parts[0];\n        formParams[`${df}[M]`] = parts[1].replace(/^0/, '');\n        formParams[`${df}[d]`] = parts[2].replace(/^0/, '');\n      }\n    }\n  }\n}\n\nlet lineIndex = 0;\nfor (const line of lines) {\n  const prefix = `lines[${lineIndex}]`;\n  formParams[`${prefix}[item_id]`] = line.item_id || '';\n  formParams[`${prefix}[item_quantity]`] = line.item_quantity || '';\n  formParams[`${prefix}[item_package_id]`] = line.item_package_id || '';\n  formParams[`${prefix}[discount_id]`] = line.discount_id || '';\n  formParams[`${prefix}[line_status]`] = line.line_status || '';\n  formParams[`${prefix}[__id__]`] = 'new';\n  lineIndex++;\n}\n\nif (lines.length === 0) {\n  formParams['lines[0][__id__]'] = 'new';\n}\n\nformParams['lines[__loaded__]'] = String(lineIndex || 1);\n\nreturn [{ json: formParams }];"
+      },
+      "name": "Build POST payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://oms.primesandzooms.com/pnz_internal/index.php",
+        "authentication": "genericCredentialType",
+        "sendBody": true,
+        "bodyType": "form-data",
+        "bodyParameters": {},
+        "options": {
+          "keepSession": true
+        },
+        "sendQuery": false,
+        "sendHeaders": false
+      },
+      "name": "Submit to Xataface",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst responseBody = typeof response.body === 'string' ? response.body : JSON.stringify(response.body);\n\nconst hasSuccessMarker = responseBody.includes('inquiry_id')\n  || responseBody.includes('Record saved')\n  || responseBody.includes('Record successfully saved');\n\nconst hasErrorMarker = responseBody.includes('Please correct')\n  || responseBody.includes('Please Select')\n  || responseBody.includes('Error:')\n  || responseBody.includes('alert(');\n\nconst success = hasSuccessMarker && !hasErrorMarker;\n\nreturn [{\n  json: {\n    success,\n    message: success ? 'Inquiry submitted successfully' : 'Submission failed',\n    responsePreview: responseBody.substring(0, 500)\n  }\n}];"
+      },
+      "name": "Check result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Login to OMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login to OMS": {
+      "main": [
+        [
+          {
+            "node": "Fetch new-inquiry form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch new-inquiry form": {
+      "main": [
+        [
+          {
+            "node": "Extract CSRF token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CSRF token": {
+      "main": [
+        [
+          {
+            "node": "Default form fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default form fields": {
+      "main": [
+        [
+          {
+            "node": "Build POST payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build POST payload": {
+      "main": [
+        [
+          {
+            "node": "Submit to Xataface",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit to Xataface": {
+      "main": [
+        [
+          {
+            "node": "Check result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "id": 999
+}

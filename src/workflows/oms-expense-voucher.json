@@ -22,8 +22,8 @@
           "parameters": [
             { "name": "-action", "value": "login" },
             { "name": "-redirect", "value": "" },
-            { "name": "UserName", "value": "kapil" },
-            { "name": "Password", "value": "1DR37JWTZT" },
+            { "name": "UserName", "value": "={{ $env.OMS_USERNAME }}" },
+            { "name": "Password", "value": "={{ $env.OMS_PASSWORD }}" },
             { "name": "-submit", "value": "Submit" }
           ]
         },

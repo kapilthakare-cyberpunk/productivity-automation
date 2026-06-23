@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+: "${OMS_USERNAME:?OMS_USERNAME env var must be set}"
+: "${OMS_PASSWORD:?OMS_PASSWORD env var must be set}"
+
 BASE="https://oms.primesandzooms.com/pnz_internal"
 COOKIE_FILE=$(mktemp /tmp/oms_cookies.XXXXXX)
 trap 'rm -f "$COOKIE_FILE"' EXIT
@@ -23,7 +26,7 @@ die() { echo "Error: $*" >&2; exit 1; }
 login() {
   curl -s -c "$COOKIE_FILE" -b "$COOKIE_FILE" \
     -X POST "$BASE/index.php" \
-    -d "-action=login&-redirect=&UserName=kapil&Password=1DR37JWTZT&-submit=Submit" \
+    -d "-action=login&-redirect=&UserName=${OMS_USERNAME}&Password=${OMS_PASSWORD}&-submit=Submit" \
     -o /dev/null
   echo "Logged in"
 }
