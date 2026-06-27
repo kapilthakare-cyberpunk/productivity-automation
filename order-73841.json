@@ -1,0 +1,22 @@
+{
+  "customer": "Kaps Test",
+  "products": [
+    { "sku": "SFX3", "qty": 3, "customPrice": 2440.67, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "SFE2470F282", "qty": 2, "customPrice": 1525.50, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "SFE1635F282", "qty": 1, "customPrice": 1525.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "SFE50F12", "qty": 2, "customPrice": 1220.50, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "SFE70200F282", "qty": 2, "customPrice": 1525.50, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "LLBM150", "qty": 1, "customPrice": 381.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "82VND15", "qty": 3, "customPrice": 381.33, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "DJIRS4P", "qty": 1, "customPrice": 2136.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "CMATTDT", "qty": 3, "customPrice": 915.33, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "HLMR4K", "qty": 1, "customPrice": 686.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "BMATMP", "qty": 1, "customPrice": 763.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "APNP300C", "qty": 3, "customPrice": 1525.33, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "APLS600D", "qty": 1, "customPrice": 1678.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "GF400BI", "qty": 2, "customPrice": 1068.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "UHDMI30FT", "qty": 2, "customPrice": 38.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "UHDMI15FT", "qty": 2, "customPrice": 38.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" },
+    { "sku": "SFE85F18", "qty": 1, "customPrice": 458.00, "rentalStart": "2026-06-28", "rentalEnd": "2026-06-28" }
+  ]
+}

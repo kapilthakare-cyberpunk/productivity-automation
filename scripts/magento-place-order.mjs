@@ -130,10 +130,12 @@ async function manualLogin(page) {
 }
 
 async function navigateToOrders(page) {
-  const ordersUrl = `${CONFIG.MAGENTO_BASE_URL}/admin/sales_order/index/`;
-  await page.goto(ordersUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  if (!page.url().includes('/sales/order/')) {
+    const ordersUrl = `${CONFIG.MAGENTO_BASE_URL}/admin/sales_order/index/`;
+    await page.goto(ordersUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  }
   await page.waitForSelector('.page-actions-buttons, #sales_order_grid', { timeout: 15000 });
-  console.log('Navigated to Sales > Orders');
+  console.log('On Sales > Orders page');
 }
 
 async function createNewOrder(page) {
@@ -272,12 +274,20 @@ async function main() {
     console.log('Connecting to existing Chrome at http://127.0.0.1:9222...');
     browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
     const ctx = browser.contexts()[0];
-    page = ctx.pages()[0];
+    const allPages = ctx.pages();
+    console.log(`Found ${allPages.length} pages. Looking for Magento admin...`);
+    const magentoPage = allPages.find(p => p.url().includes('primesandzooms.com/notoms'));
+    if (!magentoPage) {
+      console.log('Available pages:');
+      for (const p of allPages) {
+        const u = p.url();
+        console.log(`  - ${u.substring(0, 120)}`);
+      }
+      throw new Error('Could not find a Magento admin tab. Navigate to Magento admin in Chrome and try again.');
+    }
+    page = magentoPage;
     context = ctx;
-    console.log('Connected. Current URL:', page.url());
-    console.log('Navigating to admin dashboard...');
-    await page.goto(CONFIG.ADMIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForSelector('.admin__menu', { timeout: 15000 });
+    console.log('Connected to Magento tab. Current URL:', page.url().substring(0, 120));
   } else {
     ({ context, page } = await launchBrowser());
 
@@ -300,9 +310,25 @@ async function main() {
   }
 
   try {
-    console.log(`\nPlacing order for customer: ${order.customer}`);
-    await navigateToOrders(page);
-    await createNewOrder(page);
+    const currentUrl = page.url();
+    const pageType = currentUrl.includes('/order_create/') ? 'order_create'
+      : currentUrl.includes('/sales_order/') ? 'sales_order'
+      : 'unknown';
+
+    console.log(`\nPlacing order for customer: ${order.customer} (current page: ${pageType})`);
+
+    if (pageType === 'sales_order') {
+      console.log('Navigating to Create Order page...');
+      await page.goto(`${CONFIG.MAGENTO_BASE_URL}/admin/sales_order_create/index/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(3000);
+    } else if (pageType === 'order_create') {
+      console.log('Already on Create Order page — skipping navigation.');
+    } else {
+      console.log('Navigating to Create Order page...');
+      await page.goto(`${CONFIG.MAGENTO_BASE_URL}/admin/sales_order_create/index/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForTimeout(3000);
+    }
+
     await selectCustomer(page, order.customer);
     for (const product of order.products) {
       await addProduct(page, product);
