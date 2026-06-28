@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Message to Mayuresh</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; background: #f5f5f5;
+  }
+  .card {
+    background: white; border-radius: 12px; padding: 32px;
+    max-width: 640px; width: 90%; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .msg {
+    background: #f8f9fa; border: 1px solid #dee2e6;
+    border-radius: 8px; padding: 20px; line-height: 1.7;
+    font-size: 15px; color: #1a1a1a; margin-bottom: 16px;
+    white-space: pre-wrap;
+  }
+  button {
+    background: #0066cc; color: white; border: none;
+    padding: 10px 24px; border-radius: 6px; font-size: 14px;
+    cursor: pointer; font-weight: 500;
+  }
+  button:hover { background: #0052a3; }
+  button.copied { background: #28a745; }
+  .footer { margin-top: 12px; font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="msg" id="msg">Hi Mayuresh,
+
+I'm getting the following errors when trying to access the REST API on the test instance:
+
+1. Admin user token (kapilt):
+{"message":"The consumer isn't authorized to access %resources.","parameters":{"resources":"Magento_Backend::store"}}
+
+2. Integration key (hiiqn4ynscfboukumrfdqsl8yvpiipmf):
+{"message":"The consumer isn't authorized to access %resources.","parameters":{"resources":"Magento_Backend::admin"}}
+
+Whichever is easier for you:
+- Option A: Add Magento_Backend::store permission to the kapilt admin role (System > Permissions > User Roles).
+- Option B: Update the integration key to include config + catalog resources.
+
+Need this to automate store-specific settings for Pune and Mumbai via API.
+
+Thanks!</div>
+  <button id="copyBtn">📋 Copy Message</button>
+  <div class="footer" id="status"></div>
+</div>
+<script>
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const text = document.getElementById('msg').textContent;
+  await navigator.clipboard.writeText(text);
+  const btn = document.getElementById('copyBtn');
+  btn.textContent = '✅ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = '📋 Copy Message';
+    btn.classList.remove('copied');
+  }, 2000);
+});
+</script>
+</body>
+</html>

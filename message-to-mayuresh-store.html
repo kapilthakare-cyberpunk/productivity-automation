@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 20px; max-width: 600px; }
+    .msg { background: #f0f4ff; padding: 20px; border-radius: 12px; font-size: 15px; line-height: 1.6; }
+    code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    .btn { display: inline-block; margin-top: 10px; padding: 8px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .btn:hover { background: #2563eb; }
+    .copied { color: #22c55e; margin-left: 8px; font-size: 13px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="msg" id="msg">
+    <b>Hey Mayuresh,</b><br><br>
+    The integration key works for auth now but the <code>kapilt</code> admin role is still missing <code>Magento_Backend::store</code> permission. <br><br>
+    Could you please add <b>Stores → Store</b> (or all of <b>Stores</b>) to the <code>kapilt</code> admin role? <br><br>
+    The integration key also needs <b>Stores</b> + <b>Catalog</b> access if possible. <br><br>
+    Thanks!
+  </div>
+  <br>
+  <button class="btn" onclick="copyMsg()">📋 Copy Message</button>
+  <span class="copied" id="copied">Copied!</span>
+
+  <script>
+    function copyMsg() {
+      const txt = document.getElementById('msg').innerText;
+      navigator.clipboard.writeText(txt).then(() => {
+        document.getElementById('copied').style.display = 'inline';
+        setTimeout(() => document.getElementById('copied').style.display = 'none', 2000);
+      });
+    }
+  </script>
+</body>
+</html>
